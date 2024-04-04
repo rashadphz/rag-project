@@ -12,6 +12,7 @@ ipykernel = "^6.29.4"
 llama-index-embeddings-huggingface = "^0.2.0"
 pypdf2 = "^3.0.1"
 load-dotenv = "^0.1.0"
+ragas = "^0.1.6"
 
 
 [build-system]
