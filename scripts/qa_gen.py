@@ -8,6 +8,9 @@ from ragas.testset.generator import TestsetGenerator
 from constants import GPT3_MODEL, GPT4_MODEL, OPENAI_EMBEDDINGS_MODEL
 from parse_json import PDFJson
 from llama_index.core import Document
+from qdrant_client import QdrantClient
+from llama_index.vector_stores.qdrant import QdrantVectorStore
+from llama_index.core.indices.vector_store.base import VectorStoreIndex
 
 
 load_dotenv()
@@ -26,6 +29,12 @@ generator = TestsetGenerator.from_langchain(
 )
 
 distributions = {simple: 0.5, multi_context: 0.4, reasoning: 0.1}
+
+client = QdrantClient(path="../qdrant-vector-store")
+vector_store = QdrantVectorStore(client=client, collection_name="test-collection")
+index = VectorStoreIndex.from_vector_store(
+    vector_store=vector_store, embed_model=embeddings
+)
 
 
 if __name__ == "__main__":

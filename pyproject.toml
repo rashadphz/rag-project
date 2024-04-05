@@ -6,13 +6,17 @@ authors = ["Your Name <you@example.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = ">=3.12,<3.13"
 llama-index = "^0.10.26"
 ipykernel = "^6.29.4"
 llama-index-embeddings-huggingface = "^0.2.0"
 pypdf2 = "^3.0.1"
 load-dotenv = "^0.1.0"
 ragas = "^0.1.6"
+qdrant-client = "^1.8.2"
+llama-index-vector-stores-qdrant = "^0.1.6"
+llama-index-postprocessor-flag-embedding-reranker = "^0.1.2"
+flagembedding = {git = "https://github.com/FlagOpen/FlagEmbedding.git"}
 
 
 [build-system]
