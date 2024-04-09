@@ -1,49 +1,71 @@
-import nest_asyncio
-from constants import GPT3_MODEL, GPT4_MODEL, OPENAI_EMBEDDINGS_MODEL
-from datasets import Dataset, load_from_disk
+import asyncio
+import glob
+import os
+from typing import List
+
+from constants import OPENAI_EMBEDDINGS_MODEL
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from llama_index.core import Document
-from llama_index.core.indices.vector_store.base import VectorStoreIndex
+from langchain_openai import OpenAIEmbeddings
+from llama_index.core import Document, StorageContext
+from llama_index.core.node_parser import MarkdownElementNodeParser, MarkdownNodeParser
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from parse_json import PDFJson
 from qdrant_client import QdrantClient
-from ragas.testset.evolutions import multi_context, reasoning, simple
-from ragas.testset.generator import TestsetGenerator
-from llama_index.core import StorageContext
-from llama_index.core.node_parser import MarkdownElementNodeParser
-from llama_index.llms.openai import OpenAI
-
 
 load_dotenv()
 
-nest_asyncio.apply()
 
-embeddings = OpenAIEmbeddings(model=OPENAI_EMBEDDINGS_MODEL)
+client = QdrantClient(
+    url="https://86913b95-6060-4686-8047-7bae2fbd8541.us-east4-0.gcp.cloud.qdrant.io",
+    api_key=os.getenv("QDRANT_API_KEY"),
+)
+vector_store = QdrantVectorStore(
+    client=client, collection_name="test-collection", batch_size=30
+)
 
 
-client = QdrantClient(path="../qdrant-vector-store")
-vector_store = QdrantVectorStore(client=client, collection_name="test-collection")
-storage_context = StorageContext.from_defaults(vector_store=vector_store)
+def clear_vector_store(vector_store: QdrantVectorStore):
+    client: QdrantClient = vector_store.client
+    client.delete_collection(collection_name=vector_store.collection_name)
+
+
+def get_documents(folder_path: str) -> List[Document]:
+    parsed_files = glob.glob(f"{folder_path}/*.json")
+    pdf_jsons = [PDFJson.from_json_file(f) for f in parsed_files]
+
+    return [
+        Document(
+            metadata={"filename": pdf_json.basename},
+            text=pdf_json.full_md,
+        )
+        for pdf_json in pdf_jsons
+    ]
+
+
+from langchain_openai import OpenAIEmbeddings
+
+embedder = OpenAIEmbeddings(model=OPENAI_EMBEDDINGS_MODEL)
+
+
+async def main():
+    node_parser = MarkdownNodeParser()
+    nodes = node_parser.get_nodes_from_documents(get_documents("./mini-parse-output"))
+
+    print(f"Embedding {len(nodes)} nodes...")
+    embeddings = await embedder.aembed_documents(
+        [node.get_content(metadata_mode="all") for node in nodes]
+    )
+    print(f"Embedded {len(nodes)} nodes...")
+
+    for node, embedding in zip(nodes, embeddings):
+        node.embedding = embedding
+
+    res = vector_store.add(nodes)
+    print(res)
 
 
 if __name__ == "__main__":
+    asyncio.run(main())
 
-    node_parser = MarkdownElementNodeParser(llm=OpenAI(model=GPT3_MODEL), num_workers=8)
-
-    pdf_json = PDFJson.from_json_file("./parse-output/2302.01381.json")
-    pdf_md = pdf_json.full_md
-    documents = [
-        Document(
-            metadata={"pdf_path": pdf_json.file_path, "pdf_id": pdf_json.job_id},
-            text=pdf_md,
-        )
-    ]
-    nodes = node_parser.get_nodes_from_documents([documents])
-    base_nodes, objects = node_parser.get_nodes_and_objects(nodes)
-
-    index = VectorStoreIndex.build_index_from_nodes(
-        nodes=base_nodes + objects, storage_context=storage_context
-    )
-
-    print(index)
+    # TODO: This one parses tables an their summaries (probably better)
+    # node_parser = MarkdownElementNodeParser(llm=OpenAI(model=GPT3_MODEL), num_workers=8)
