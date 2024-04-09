@@ -1,3 +1,4 @@
+import os
 from pydantic import BaseModel, ValidationError, model_validator, root_validator
 from functools import cached_property
 from typing import Union
@@ -44,6 +45,10 @@ class PDFJson(BaseModel):
     @cached_property
     def full_md(self) -> str:
         return "\n\n".join([page.md for page in self.pages])
+
+    @cached_property
+    def basename(self) -> str:
+        return os.path.basename(self.file_path)
 
     @classmethod
     def from_json_file(cls, file_path: str):

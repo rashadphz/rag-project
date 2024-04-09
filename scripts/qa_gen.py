@@ -1,3 +1,5 @@
+import glob
+from typing import List
 import nest_asyncio
 from datasets import Dataset, load_from_disk
 from dotenv import load_dotenv
@@ -30,36 +32,35 @@ generator = TestsetGenerator.from_langchain(
 
 distributions = {simple: 0.5, multi_context: 0.4, reasoning: 0.1}
 
-client = QdrantClient(path="../qdrant-vector-store")
-vector_store = QdrantVectorStore(client=client, collection_name="test-collection")
-index = VectorStoreIndex.from_vector_store(
-    vector_store=vector_store, embed_model=embeddings
-)
+
+def get_documents(folder_path: str) -> List[Document]:
+    parsed_files = glob.glob(f"{folder_path}/*.json")
+    pdf_jsons = [PDFJson.from_json_file(f) for f in parsed_files]
+
+    return [
+        Document(
+            metadata={"filename": pdf_json.basename},
+            text=pdf_json.full_md,
+        )
+        for pdf_json in pdf_jsons
+    ]
 
 
 if __name__ == "__main__":
-    pdf_json = PDFJson.from_json_file("./parse-output/2302.01381.json")
-    pdf_md = pdf_json.full_md
+    index_docs = get_documents("./mini-parse-output")
 
-    index_docs = [
-        Document(
-            metadata={"pdf_path": pdf_json.file_path, "pdf_id": pdf_json.job_id},
-            text=pdf_md,
-        )
-    ]
+    # testset = generator.generate_with_llamaindex_docs(
+    #     index_docs,
+    #     test_size=4,
+    #     distributions=distributions,
+    #     with_debugging_logs=True,
+    # )
 
-    testset = generator.generate_with_llamaindex_docs(
-        index_docs,
-        test_size=3,
-        distributions=distributions,
-        with_debugging_logs=True,
-    )
+    # testset.to_dataset().save_to_disk("questions")
+    # test_df = testset.to_pandas()
+    # test_df.head()
 
-    testset.to_dataset().save_to_disk("questions")
-    test_df = testset.to_pandas()
-    test_df.head()
-
-    # dataset = load_from_disk("../questions")
-    # test_df = dataset.to_pandas()
-    # test_df.to_csv("generated_questions.csv", index=False)
-    # print("Questions saved to generated_questions.csv")
+    dataset = load_from_disk("../questions/")
+    test_df = dataset.to_pandas()
+    test_df.to_csv("generated_questions.csv", index=False)
+    print("Questions saved to generated_questions.csv")
