@@ -3,8 +3,8 @@ export interface SendMessageRequest {
 }
 
 export interface Source {
-  name: string;
-  url: string;
+  filename: string;
+  heading: string;
 }
 
 export interface SourceResponse {

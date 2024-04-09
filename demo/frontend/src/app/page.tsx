@@ -53,23 +53,8 @@ import {
   TextChunk,
 } from "@/interfaces";
 import { Card, CardContent } from "@/components/ui/card";
-
-const SourceBox: React.FC<Source> = ({ name, url }) => (
-  <div>
-    <a href={url} target="_blank" rel="noopener noreferrer">
-      {name}
-    </a>
-  </div>
-);
-
-const TextChunkComponent: React.FC<TextChunk> = ({ text }) => (
-  <></>
-  //   <div>{text}</div>
-);
-
-const FollowUpQuestionBox: React.FC<{ question: string }> = ({ question }) => (
-  <li>{question}</li>
-);
+import { SearchResults } from "@/components/search-results";
+import DarkToggle from "@/components/dark-toggle";
 
 export default function Dashboard() {
   const [sourceResponses, setSourceResponses] = useState<Source[]>([]);
@@ -211,6 +196,7 @@ export default function Dashboard() {
               </form>
             </DrawerContent>
           </Drawer>
+          <DarkToggle />
         </header>
         <main className="grid flex-1 gap-4 overflow-auto p-4 md:grid-cols-2 lg:grid-cols-3">
           <div
@@ -323,32 +309,19 @@ export default function Dashboard() {
                 {sourceResponses.length > 0 && (
                   <div>
                     <div className="text-lg font-medium">Sources</div>
-                    <div className="flex flex-wrap ">
-                      {sourceResponses.map(({ name, url }, index) => (
-                        <div
-                          key={`source-${index}`}
-                          className="w-1/2 md:w-1/4  pl-0 p-2"
-                        >
-                          <Card className="flex-1 rounded-md">
-                            <CardContent className="p-2">
-                              <p className="text-xs line-clamp-2">{name}</p>
-                              <div className="mt-2 flex items-center space-x-2">
-                                <div className="text-xs opacity-60 truncate">
-                                  {url}
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </div>
-                      ))}
-                    </div>
+                    <SearchResults
+                      results={sourceResponses.map(({ filename, heading }) => ({
+                        filename,
+                        content: heading,
+                      }))}
+                    />
                   </div>
                 )}
                 {/* Answer */}
                 {textChunks.length > 0 && (
                   <div>
                     <div className="text-lg font-medium">Answer</div>
-                    <div>{textChunks.map(({ text }) => text).join(" ")}</div>
+                    <div>{textChunks.map(({ text }) => text).join("")}</div>
                   </div>
                 )}
                 {/* Related */}
