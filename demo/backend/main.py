@@ -1,6 +1,7 @@
 from typing import Iterator
 from fastapi import FastAPI, Response
 from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import json
 import time
@@ -8,6 +9,13 @@ import time
 import requests
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class Source(BaseModel):
@@ -23,8 +31,8 @@ class TextChunk(BaseModel):
     text: str | None  # None for the last chunk
 
 
-class FollowUpQuestion(BaseModel):
-    question: str
+class FollowUpQuestions(BaseModel):
+    questions: list[str]
 
 
 sources = [
@@ -35,15 +43,19 @@ sources = [
         ]
     ),
 ]
-text_chunks = [
-    TextChunk(text="Here is a piece of text."),
-    TextChunk(text="Here is another piece of text."),
-]
-follow_up_questions = [
-    FollowUpQuestion(question="What is X?"),
-    FollowUpQuestion(question="How does Y work?"),
-    FollowUpQuestion(question="Where can I find Z?"),
-]
+
+full_text = """
+Based on the search results, here is a concise answer to the question:
+Local balanced samplers in generative models can improve the quality and diversity of generated samples compared to standard sampling approaches. The key findings are:
+"""
+text_chunks = [TextChunk(text=text) for text in full_text.split(" ")]
+follow_up_questions = FollowUpQuestions(
+    questions=[
+        "What is X?",
+        "How does Y work?",
+        "Where can I find Z?",
+    ]
+)
 
 
 def get_json_line(json_dict: dict) -> str:
@@ -51,21 +63,24 @@ def get_json_line(json_dict: dict) -> str:
 
 
 def stream_chat_message_objects() -> (
-    Iterator[SourceResponse | TextChunk | FollowUpQuestion]
+    Iterator[SourceResponse | TextChunk | FollowUpQuestions]
 ):
     for source in sources:
         yield source
-    time.sleep(1)
+    time.sleep(0.5)
     for chunk in text_chunks:
-        time.sleep(0.1)
+        time.sleep(0.01)
         yield chunk
-    time.sleep(2)
-    for question in follow_up_questions:
-        yield question
+    time.sleep(0.5)
+    yield follow_up_questions
 
 
-@app.get("/chat")
-async def root() -> StreamingResponse:
+class SendMessageRequest(BaseModel):
+    message: str
+
+
+@app.post("/chat")
+async def chat(request: SendMessageRequest) -> StreamingResponse:
     objects = stream_chat_message_objects()
 
     def generator() -> Iterator[str]:
