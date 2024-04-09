@@ -8,6 +8,7 @@ import {
   LifeBuoy,
   Mic,
   Paperclip,
+  PlusCircleIcon,
   Rabbit,
   Settings,
   Settings2,
@@ -223,7 +224,7 @@ export default function Dashboard() {
                 </legend>
                 <div className="grid gap-3">
                   <Label htmlFor="model">Model</Label>
-                  <Select>
+                  <Select defaultValue="gpt4">
                     <SelectTrigger
                       id="model"
                       className="items-start [&_[data-description]]:hidden"
@@ -231,7 +232,7 @@ export default function Dashboard() {
                       <SelectValue placeholder="Select a model" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="genesis">
+                      <SelectItem value="gpt4">
                         <div className="flex items-start gap-3 text-muted-foreground">
                           <Turtle className="size-5" />
                           <div className="grid gap-0.5">
@@ -246,7 +247,7 @@ export default function Dashboard() {
                           </div>
                         </div>
                       </SelectItem>
-                      <SelectItem value="explorer">
+                      <SelectItem value="gpt3">
                         <div className="flex items-start gap-3 text-muted-foreground">
                           <Rabbit className="size-5" />
                           <div className="grid gap-0.5">
@@ -321,7 +322,7 @@ export default function Dashboard() {
                 {/* Sources */}
                 {sourceResponses.length > 0 && (
                   <div>
-                    <div className="text-lg font-normal">Sources</div>
+                    <div className="text-lg font-medium">Sources</div>
                     <div className="flex flex-wrap ">
                       {sourceResponses.map(({ name, url }, index) => (
                         <div
@@ -346,14 +347,14 @@ export default function Dashboard() {
                 {/* Answer */}
                 {textChunks.length > 0 && (
                   <div>
-                    <div className="text-lg font-normal">Answer</div>
+                    <div className="text-lg font-medium">Answer</div>
                     <div>{textChunks.map(({ text }) => text).join(" ")}</div>
                   </div>
                 )}
                 {/* Related */}
                 {followUpQuestions.length > 0 && (
                   <div className="mt-4">
-                    <div className="flex items-center text-lg font-normal">
+                    <div className="flex items-center text-lg font-medium">
                       Related
                     </div>
                     <div className="divide-y border-t mt-2">
@@ -362,6 +363,7 @@ export default function Dashboard() {
                           key={`question-${index}`}
                           className="flex cursor-pointer items-center py-2 font-medium"
                         >
+                          <PlusCircleIcon className="mr-2" size={16} />{" "}
                           {question}
                         </div>
                       ))}
