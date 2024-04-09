@@ -43,8 +43,50 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useEffect, useState } from "react";
+import { sendMessage } from "@/lib";
+import {
+  FollowUpQuestions,
+  Source,
+  SourceResponse,
+  TextChunk,
+} from "@/interfaces";
+import { Card, CardContent } from "@/components/ui/card";
+
+const SourceBox: React.FC<Source> = ({ name, url }) => (
+  <div>
+    <a href={url} target="_blank" rel="noopener noreferrer">
+      {name}
+    </a>
+  </div>
+);
+
+const TextChunkComponent: React.FC<TextChunk> = ({ text }) => (
+  <></>
+  //   <div>{text}</div>
+);
+
+const FollowUpQuestionBox: React.FC<{ question: string }> = ({ question }) => (
+  <li>{question}</li>
+);
 
 export default function Dashboard() {
+  const [sourceResponses, setSourceResponses] = useState<Source[]>([]);
+  const [textChunks, setTextChunks] = useState<TextChunk[]>([]);
+  const [followUpQuestions, setFollowUpQuestions] = useState<string[]>([]);
+
+  const onSubmit = async () => {
+    for await (const packet of sendMessage({ message: "Who made this?" })) {
+      if (Object.hasOwn(packet, "top_sources")) {
+        console.log(packet as SourceResponse);
+        setSourceResponses((packet as SourceResponse).top_sources);
+      } else if (Object.hasOwn(packet, "text")) {
+        setTextChunks((prev) => [...prev, packet as TextChunk]);
+      } else if (Object.hasOwn(packet, "questions")) {
+        setFollowUpQuestions((packet as FollowUpQuestions).questions);
+      }
+    }
+  };
   return (
     <div className="grid h-screen w-full">
       <div className="flex flex-col">
@@ -265,15 +307,70 @@ export default function Dashboard() {
               </fieldset> */}
             </form>
           </div>
-          <div className="relative flex h-full min-h-[50vh] flex-col rounded-xl bg-muted/50 p-4 lg:col-span-2">
-            <Badge variant="outline" className="absolute right-3 top-3">
+          <div className="relative flex h-full min-h-[50vh] flex-col rounded-md p-4 lg:col-span-2">
+            {/* <Badge variant="outline" className="absolute right-3 top-3">
               Output
-            </Badge>
-            <div className="flex-1" />
-            <form
-              className="relative overflow-hidden rounded-lg border bg-background focus-within:ring-1 focus-within:ring-ring"
-              x-chunk="dashboard-03-chunk-1"
-            >
+            </Badge> */}
+            <div className="flex-1">
+              <div className="flex flex-col gap-4">
+                {/* Query */}
+                <div className="text-2xl">
+                  How do local balanced samplers in generative models compare in
+                  terms of sample quality and diversity?
+                </div>
+                {/* Sources */}
+                {sourceResponses.length > 0 && (
+                  <div>
+                    <div className="text-lg font-normal">Sources</div>
+                    <div className="flex flex-wrap ">
+                      {sourceResponses.map(({ name, url }, index) => (
+                        <div
+                          key={`source-${index}`}
+                          className="w-1/2 md:w-1/4  pl-0 p-2"
+                        >
+                          <Card className="flex-1 rounded-md">
+                            <CardContent className="p-2">
+                              <p className="text-xs line-clamp-2">{name}</p>
+                              <div className="mt-2 flex items-center space-x-2">
+                                <div className="text-xs opacity-60 truncate">
+                                  {url}
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Answer */}
+                {textChunks.length > 0 && (
+                  <div>
+                    <div className="text-lg font-normal">Answer</div>
+                    <div>{textChunks.map(({ text }) => text).join(" ")}</div>
+                  </div>
+                )}
+                {/* Related */}
+                {followUpQuestions.length > 0 && (
+                  <div className="mt-4">
+                    <div className="flex items-center text-lg font-normal">
+                      Related
+                    </div>
+                    <div className="divide-y border-t mt-2">
+                      {followUpQuestions.map((question, index) => (
+                        <div
+                          key={`question-${index}`}
+                          className="flex cursor-pointer items-center py-2 font-medium"
+                        >
+                          {question}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="relative overflow-hidden rounded-lg border bg-background focus-within:ring-1 focus-within:ring-ring">
               <Label htmlFor="message" className="sr-only">
                 Message
               </Label>
@@ -283,12 +380,16 @@ export default function Dashboard() {
                 className="min-h-12 resize-none border-0 p-3 shadow-none focus-visible:ring-0"
               />
               <div className="flex items-center p-3 pt-0">
-                <Button type="submit" size="sm" className="ml-auto gap-1.5">
+                <Button
+                  onClick={onSubmit}
+                  size="sm"
+                  className="ml-auto gap-1.5"
+                >
                   Send Message
                   <CornerDownLeft className="size-3.5" />
                 </Button>
               </div>
-            </form>
+            </div>
           </div>
         </main>
       </div>
