@@ -24,7 +24,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 qa_prompt = """\
-You are a professional research assistant. For each user question, use the context to their fullest potential to answer the question. Directly answer the question, and augment the response with insights from the context.
+You are a professional research assistant. For each user question, use the context to their fullest potential to answer the question. Directly answer the question, and augment the response with insights from the context. If LaTeX is needed in the answer, make sure to render it correctly within a LaTeX block with either inline or block formatting ($content$ or $$content$$).
 ---------------------
 {my_context}
 ---------------------

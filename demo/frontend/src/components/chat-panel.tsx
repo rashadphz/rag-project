@@ -44,13 +44,15 @@ const AiMessage = ({
       )}
       {/* Answer */}
       <div>
-        <div className="text-lg font-medium">Answer</div>
+        <div className="text-lg font-medium ">Answer</div>
         <MessageComponent message={message} />
       </div>
       {/* Related */}
       {followUpQuestions.length > 0 && (
         <div className="mt-4">
-          <div className="flex items-center text-lg font-medium">Related</div>
+          <div className="flex items-center text-lg font-medium animate-in fade-in duration-1000 ease-out">
+            Related
+          </div>
           <div className="divide-y border-t mt-2">
             {followUpQuestions.map((question, index) => (
               <div
