@@ -78,13 +78,13 @@ export async function* handleStream<T extends NonEmptyObject>(
   }
 }
 
-export async function* sendMessage({ message }: SendMessageRequest) {
+export async function* sendMessage({ message, history }: SendMessageRequest) {
   const response = await fetch("http://127.0.0.1:8000/chat", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, history }),
   });
 
   if (!response.ok) {

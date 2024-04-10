@@ -91,7 +91,14 @@ export function ChatPanel() {
     let answer = "";
     let sources: Source[] = [];
     let followUpQuestions: string[] = [];
-    for await (const packet of sendMessage({ message: query })) {
+    const history = messages.map((message) => ({
+      role: message.type,
+      content: message.message,
+    }));
+    for await (const packet of sendMessage({
+      message: query,
+      history: history,
+    })) {
       if (Object.hasOwn(packet, "top_sources")) {
         sources = (packet as SourceResponse).top_sources;
       } else if (Object.hasOwn(packet, "text")) {

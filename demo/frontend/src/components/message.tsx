@@ -9,12 +9,6 @@ export interface MessageProps {
 }
 
 export const MessageComponent: FC<MessageProps> = ({ message }) => {
-  const text = `Given a **formula** below
-$$
-s = ut + \\frac{1}{2}at^{2}
-$$
-Calculate the value of $s$ when $u = 10\\frac{m}{s}$ and $a = 2\\frac{m}{s^{2}}$ at $t = 1s$`;
-
   return (
     <MemoizedReactMarkdown
       remarkPlugins={[remarkMath]}
@@ -22,7 +16,6 @@ Calculate the value of $s$ when $u = 10\\frac{m}{s}$ and $a = 2\\frac{m}{s^{2}}$
       className="prose-base prose-neutral"
     >
       {message}
-      {/* {text} */}
     </MemoizedReactMarkdown>
   );
 };

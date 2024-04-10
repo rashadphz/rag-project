@@ -1,5 +1,11 @@
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export interface SendMessageRequest {
   message: string;
+  history: ChatMessage[];
 }
 
 export interface Source {

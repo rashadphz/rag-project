@@ -1,5 +1,5 @@
 import asyncio
-from typing import Iterator
+from typing import Iterator, List
 from fastapi import FastAPI, Response
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,14 +23,22 @@ def get_json_line(json_dict: dict) -> str:
     return json.dumps(json_dict) + "\n"
 
 
+class Message(BaseModel):
+    role: str
+    content: str
+
+
 class SendMessageRequest(BaseModel):
     message: str
+    history: List[Message]
 
 
 @app.post("/chat")
 async def chat(request: SendMessageRequest) -> StreamingResponse:
     async def generator() -> Iterator[str]:
-        async for obj in stream_chat_message_objects(request.message):
+        async for obj in stream_chat_message_objects(
+            request.message, history=request.history
+        ):
             yield get_json_line(obj.model_dump_json())
             await asyncio.sleep(0)
 
