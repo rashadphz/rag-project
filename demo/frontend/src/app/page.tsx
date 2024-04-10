@@ -55,7 +55,8 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { SearchResults } from "@/components/search-results";
 import DarkToggle from "@/components/dark-toggle";
-import { Message } from "@/components/message";
+import { MessageComponent } from "@/components/message";
+import { ChatPanel } from "@/components/chat-panel";
 
 export default function Dashboard() {
   const [sourceResponses, setSourceResponses] = useState<Source[]>([]);
@@ -74,6 +75,12 @@ export default function Dashboard() {
       }
     }
   };
+
+  return (
+    <div className="max-w-4xl px-4 mx-auto pt-4 pb-12">
+      <ChatPanel />
+    </div>
+  );
   return (
     <div className="grid h-screen w-full">
       <div className="flex flex-col">
@@ -322,7 +329,7 @@ export default function Dashboard() {
                 {textChunks.length > 0 && (
                   <div>
                     <div className="text-lg font-medium">Answer</div>
-                    <Message
+                    <MessageComponent
                       message={textChunks
                         .map(({ text }) => text)
                         .join("")

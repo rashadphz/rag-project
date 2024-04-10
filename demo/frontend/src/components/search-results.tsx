@@ -15,12 +15,16 @@ export function SearchResults({ results }: SearchResultsProps) {
   return (
     <div className="flex flex-wrap ">
       {displayedResults.map(({ filename, content }, index) => (
-        <div key={`source-${index}`} className="w-1/2 md:w-1/4  p-1">
-          <Card className="flex-1 rounded-md flex-col h-full">
+        <div key={`source-${index}`} className="w-1/2 md:w-1/4 p-1">
+          <Card className="flex-1 rounded-md flex-col h-full shadow-none border-none">
             <CardContent className="p-2">
-              <p className="text-xs line-clamp-2 font-medium">{content}</p>
+              <p className="text-xs line-clamp-2 font-medium text-foreground/80">
+                {content}
+              </p>
               <div className="mt-2 flex items-center space-x-2">
-                <div className="text-xs opacity-60 truncate">{filename}</div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {filename}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -28,7 +32,7 @@ export function SearchResults({ results }: SearchResultsProps) {
       ))}
       {!showAll && additionalCount > 0 && (
         <div className="w-1/2 md:w-1/4  p-1">
-          <Card className="flex-1 rounded-md flex h-full items-center justify-center">
+          <Card className="flex-1 rounded-md flex h-full items-center justify-center shadow-none border-none">
             <CardContent className="p-2">
               <Button
                 variant="link"

@@ -5,7 +5,7 @@ export interface MessageProps {
   message: string;
 }
 
-export const Message: FC<MessageProps> = ({ message }) => {
+export const MessageComponent: FC<MessageProps> = ({ message }) => {
   return (
     <MemoizedReactMarkdown className="prose-base prose-neutral">
       {message}
