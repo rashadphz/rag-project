@@ -1,7 +1,7 @@
 import asyncio
 import glob
 import os
-from typing import Iterator, List
+from typing import AsyncIterator, Iterator, List
 
 from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
@@ -12,22 +12,22 @@ from llama_index.postprocessor.voyageai_rerank import VoyageAIRerank
 from llama_index.llms.openai import OpenAI
 from llama_index.core.schema import BaseNode
 import voyageai
-from schemas import Source, SourceResponse, TextChunk, FollowUpQuestions
+from schemas import RelatedSchema, Source, SourceResponse, TextChunk, FollowUpQuestions
+from llama_index.core.prompts import PromptTemplate
 
 OPENAI_EMBEDDINGS_MODEL = "text-embedding-3-small"
-# GPT4_MODEL = "gpt-4-turbo-preview"
-GPT4_MODEL = "gpt-3.5-turbo"
+GPT3_MODEL = "gpt-3.5-turbo"
+GPT4_MODEL = "gpt-4-turbo-preview"
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
 qa_prompt = """\
-You are an expert at answering questions about research papers.
+You are a professional research assistant. For each user question, use the context to their fullest potential to answer the question. Directly answer the question, and augment the response with insights from the context.
 ---------------------
 {my_context}
 ---------------------
-Given the context information and not prior knowledge, answer the query.
 Query: {my_query}
 Answer: \
 """
@@ -37,7 +37,7 @@ client = QdrantClient(
     api_key=os.getenv("QDRANT_API_KEY"),
 )
 vector_store = QdrantVectorStore(
-    client=client, collection_name="test-collection", batch_size=30
+    client=client, collection_name="big-collection", batch_size=30
 )
 
 embeddings = OpenAIEmbeddings(model=OPENAI_EMBEDDINGS_MODEL)
@@ -53,14 +53,15 @@ def source_from_node(node: BaseNode) -> Source:
     return Source(filename=node.metadata.get("filename", ""), heading=heading)
 
 
-def stream_chat_message_objects(
+async def stream_chat_message_objects(
     question: str,
-) -> Iterator[SourceResponse | TextChunk | FollowUpQuestions]:
+) -> AsyncIterator[SourceResponse | TextChunk | FollowUpQuestions]:
+    related_queries_task = asyncio.create_task(generate_related_queries(question))
     embedding = embeddings.embed_query(question)
 
     query = VectorStoreQuery(
         query_embedding=embedding,
-        similarity_top_k=15,
+        similarity_top_k=25,
     )
 
     # Sources
@@ -68,7 +69,7 @@ def stream_chat_message_objects(
 
     node_texts = [node.get_content(metadata_mode="all") for node in top_nodes]
 
-    rerank_result = vo.rerank(question, node_texts, model="rerank-lite-1", top_k=5)
+    rerank_result = vo.rerank(question, node_texts, model="rerank-lite-1", top_k=7)
     reranked_nodes: List[BaseNode] = [
         top_nodes[item.index] for item in rerank_result.results
     ]
@@ -85,10 +86,39 @@ def stream_chat_message_objects(
     for completion in llm.stream_complete(fmt_qa_prompt):
         yield TextChunk(text=completion.delta or "")
 
-    yield FollowUpQuestions(
-        questions=[
-            "this is a test?",
-            "this is another test?",
-            "and this is a third test?",
-        ]
+    related_queries = await related_queries_task
+    questions = [item.query for item in related_queries.queries]
+    yield FollowUpQuestions(questions=questions)
+
+
+async def generate_related_queries(question: str) -> RelatedSchema:
+    llm = OpenAI(model=GPT3_MODEL)
+    prompt = PromptTemplate(
+        """
+        You are a professional researcher. Your task is to generate three related queries that explore a subject matter more deeply, building on the original query and information discovered in its search results.
+
+        For example, if the original query is "How do local balanced samplers in generative models compare in terms of sample quality and diversity?" your queries could be:
+
+        What are some examples of local balanced samplers in generative models?
+        How do local balanced samplers compare to other types of samplers in generative models?
+        What are some advantages and disadvantages of using local balanced samplers in generative models?
+
+        Try to make queries that dive deeper into the subject matter, implications or similar topics related to the initial query. The goal is to predice the user's potential information needs. Keep the queries short and concise.
+
+        The user's original query is: {original_query}
+        """
     )
+    return await llm.astructured_predict(
+        output_cls=RelatedSchema, prompt=prompt, original_query=question
+    )
+
+
+async def main():
+    res = await generate_related_queries(
+        "How does the performance of GSL algorithms change when random feature noise is injected into the graph structures of Cora and Citeseer?"
+    )
+    print(res)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
