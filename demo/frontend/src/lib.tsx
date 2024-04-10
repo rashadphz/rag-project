@@ -37,7 +37,6 @@ export const processRawChunkString = <T extends NonEmptyObject>(
       chunk,
       partialChunk
     );
-    console.log({ parsedChunk, newPartialChunk });
     if (parsedChunk) {
       parsedChunks.push(parsedChunk);
       partialChunk = null;
@@ -69,6 +68,7 @@ export async function* handleStream<T extends NonEmptyObject>(
       decoder.decode(value, { stream: true }),
       prevParitalChunk
     );
+    console.log({ completeChunks });
     if (!completeChunks.length && !partialChunk) {
       break;
     }

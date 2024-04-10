@@ -55,6 +55,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { SearchResults } from "@/components/search-results";
 import DarkToggle from "@/components/dark-toggle";
+import { Message } from "@/components/message";
 
 export default function Dashboard() {
   const [sourceResponses, setSourceResponses] = useState<Source[]>([]);
@@ -321,7 +322,12 @@ export default function Dashboard() {
                 {textChunks.length > 0 && (
                   <div>
                     <div className="text-lg font-medium">Answer</div>
-                    <div>{textChunks.map(({ text }) => text).join("")}</div>
+                    <Message
+                      message={textChunks
+                        .map(({ text }) => text)
+                        .join("")
+                        .replace(/\n/g, "\n\n")}
+                    />
                   </div>
                 )}
                 {/* Related */}
