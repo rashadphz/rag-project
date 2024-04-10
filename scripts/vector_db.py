@@ -20,7 +20,7 @@ client = QdrantClient(
     api_key=os.getenv("QDRANT_API_KEY"),
 )
 vector_store = QdrantVectorStore(
-    client=client, collection_name="test-collection", batch_size=30
+    client=client, collection_name="big-collection", batch_size=30
 )
 
 
@@ -33,9 +33,10 @@ def get_documents(folder_path: str) -> List[Document]:
     parsed_files = glob.glob(f"{folder_path}/*.json")
     pdf_jsons = [PDFJson.from_json_file(f) for f in parsed_files]
 
+
     return [
         Document(
-            metadata={"filename": pdf_json.basename},
+            metadata={"filename": pdf_json.basename, "title": pdf_json.title},
             text=pdf_json.full_md,
         )
         for pdf_json in pdf_jsons
@@ -49,7 +50,7 @@ embedder = OpenAIEmbeddings(model=OPENAI_EMBEDDINGS_MODEL)
 
 async def main():
     node_parser = MarkdownNodeParser()
-    nodes = node_parser.get_nodes_from_documents(get_documents("./mini-parse-output"))
+    nodes = node_parser.get_nodes_from_documents(get_documents("./parse-output"))
 
     print(f"Embedding {len(nodes)} nodes...")
     embeddings = await embedder.aembed_documents(
@@ -61,7 +62,7 @@ async def main():
         node.embedding = embedding
 
     res = vector_store.add(nodes)
-    print(res)
+    # print(res)
 
 
 if __name__ == "__main__":

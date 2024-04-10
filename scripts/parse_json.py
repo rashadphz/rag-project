@@ -50,6 +50,13 @@ class PDFJson(BaseModel):
     def basename(self) -> str:
         return os.path.basename(self.file_path)
 
+    @cached_property
+    def title(self) -> str:
+        try:
+            return self.pages[0].items[0].value
+        except IndexError:
+            return ""
+
     @classmethod
     def from_json_file(cls, file_path: str):
         import json
