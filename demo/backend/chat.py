@@ -62,7 +62,7 @@ client = QdrantClient(
     api_key=os.getenv("QDRANT_API_KEY"),
 )
 vector_store = QdrantVectorStore(
-    client=client, collection_name="big-collection", batch_size=30
+    client=client, collection_name="big-collection-fixed", batch_size=30
 )
 
 embeddings = OpenAIEmbeddings(model=OPENAI_EMBEDDINGS_MODEL)
