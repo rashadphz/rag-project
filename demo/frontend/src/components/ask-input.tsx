@@ -6,7 +6,7 @@ export function AskInput({
   input,
   setInput,
   inputRef,
-  placeholder = "Ask anything",
+  placeholder = "Ask anything...",
 }: {
   input: string;
   setInput: (input: string) => void;

@@ -59,23 +59,6 @@ import { MessageComponent } from "@/components/message";
 import { ChatPanel } from "@/components/chat-panel";
 
 export default function Dashboard() {
-  const [sourceResponses, setSourceResponses] = useState<Source[]>([]);
-  const [textChunks, setTextChunks] = useState<TextChunk[]>([]);
-  const [followUpQuestions, setFollowUpQuestions] = useState<string[]>([]);
-
-  const onSubmit = async () => {
-    for await (const packet of sendMessage({ message: "Who made this?" })) {
-      if (Object.hasOwn(packet, "top_sources")) {
-        console.log(packet as SourceResponse);
-        setSourceResponses((packet as SourceResponse).top_sources);
-      } else if (Object.hasOwn(packet, "text")) {
-        setTextChunks((prev) => [...prev, packet as TextChunk]);
-      } else if (Object.hasOwn(packet, "questions")) {
-        setFollowUpQuestions((packet as FollowUpQuestions).questions);
-      }
-    }
-  };
-
   return (
     <div className="max-w-4xl px-4 mx-auto pt-4 pb-12">
       <ChatPanel />

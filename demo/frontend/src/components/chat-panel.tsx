@@ -183,8 +183,9 @@ export function ChatPanel() {
   }
 
   return (
-    <div className="bottom-10 flex justify-center items-center h-screen mx-auto">
-      <form className="max-w-xl w-full px-7 flex" onSubmit={handleSubmit}>
+    <div className="bottom-10 flex justify-center items-center h-screen mx-auto flex-col space-y-6">
+      <div className="text-2xl">IFML Research Assistant</div>
+      <form className="max-w-3xl w-full px-7 flex" onSubmit={handleSubmit}>
         <div className="relative flex items-center w-full">
           <AskInput inputRef={inputRef} input={input} setInput={setInput} />
         </div>
