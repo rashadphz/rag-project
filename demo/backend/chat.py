@@ -16,6 +16,13 @@ import voyageai
 from schemas import RelatedSchema, Source, SourceResponse, TextChunk, FollowUpQuestions
 from llama_index.core.prompts import PromptTemplate
 
+import logging
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+
 OPENAI_EMBEDDINGS_MODEL = "text-embedding-3-small"
 GPT3_MODEL = "gpt-3.5-turbo"
 GPT4_MODEL = "gpt-4-turbo"
@@ -92,7 +99,7 @@ def rephrase_query_with_history(
 async def stream_chat_message_objects(
     question: str, history: List[ChatMessage]
 ) -> AsyncIterator[SourceResponse | TextChunk | FollowUpQuestions]:
-
+    logging.info(f"Streaming chat message objects: {question}")
     llm = OpenAI(model=GPT4_MODEL)
 
     question = rephrase_query_with_history(question, history, llm)
@@ -117,6 +124,7 @@ async def stream_chat_message_objects(
 
     top_sources = [source_from_node(node) for node in reranked_nodes]
     yield SourceResponse(top_sources=top_sources)
+    logging.info("Finished Reranking Sources")
 
     # Chat
     context_str = "\n\n".join(
@@ -128,6 +136,7 @@ async def stream_chat_message_objects(
     fmt_qa_prompt = CHAT_PROMPT.format(
         use_citations=USE_CITATIONS, my_context=context_str, my_query=question
     )
+    logging.info(f"Beginning Text Stream: {fmt_qa_prompt}")
     for completion in llm.stream_complete(fmt_qa_prompt):
         yield TextChunk(text=completion.delta or "")
 
