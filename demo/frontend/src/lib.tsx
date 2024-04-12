@@ -9,6 +9,11 @@ import {
 
 type NonEmptyObject = { [k: string]: any };
 
+const BASE_URL =
+  process.env.NODE_ENV === "development"
+    ? "http://127.0.0.1:8000"
+    : "https://rag-project.onrender.com";
+
 const processSingleChunk = <T extends NonEmptyObject>(
   chunk: string,
   partialChunk: string | null
@@ -79,7 +84,7 @@ export async function* handleStream<T extends NonEmptyObject>(
 }
 
 export async function* sendMessage({ message, history }: SendMessageRequest) {
-  const response = await fetch("http://127.0.0.1:8000/chat", {
+  const response = await fetch(`${BASE_URL}/chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
