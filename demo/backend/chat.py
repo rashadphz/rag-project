@@ -18,7 +18,7 @@ from llama_index.core.prompts import PromptTemplate
 
 OPENAI_EMBEDDINGS_MODEL = "text-embedding-3-small"
 GPT3_MODEL = "gpt-3.5-turbo"
-GPT4_MODEL = "gpt-4-turbo-preview"
+GPT4_MODEL = "gpt-4-turbo"
 
 from dotenv import load_dotenv
 
