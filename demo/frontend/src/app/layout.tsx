@@ -9,7 +9,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "IFML RAG",
-  description: "IFML Research assitant",
+  description: "IFML Research Assistant",
 };
 
 export default function RootLayout({
