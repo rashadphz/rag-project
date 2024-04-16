@@ -17,7 +17,8 @@ llama-index-postprocessor-voyageai-rerank = "^0.1.1"
 langchain-openai = "^0.1.2"
 psycopg2 = "^2.9.9"
 
-
+[tool.poetry.dev-dependencies]
+psycopg2-binary = "^2.9.9"
 
 [build-system]
 requires = ["poetry-core"]
