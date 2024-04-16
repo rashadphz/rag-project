@@ -12,6 +12,7 @@ import { sendMessage } from "@/lib";
 import { SearchResults } from "./search-results";
 import { MessageComponent } from "./message";
 import { AskInput } from "./ask-input";
+import { Separator } from "@/components/ui/separator";
 
 const HumanMessage = ({ message }: { message: string }) => {
   return <div className="text-2xl">{message}</div>;
@@ -154,13 +155,18 @@ export function ChatPanel() {
                 );
               } else {
                 return (
-                  <AiMessage
-                    key={`message-${index}`}
-                    message={message.message}
-                    sources={message.sources || []}
-                    followUpQuestions={message.followUpQuestions || []}
-                    handleSubmit={submitQuery}
-                  />
+                  <>
+                    <AiMessage
+                      key={`message-${index}`}
+                      message={message.message}
+                      sources={message.sources || []}
+                      followUpQuestions={message.followUpQuestions || []}
+                      handleSubmit={submitQuery}
+                    />
+                    {index !== messages.length - 1 && (
+                      <Separator className="my-4" />
+                    )}
+                  </>
                 );
               }
             })}
