@@ -39,7 +39,8 @@ prompt = PromptTemplate(
     Given the first page of a research paper, your task it to accurately extract the following metadata:
 
     1. Title: extract the full title of the paper
-    2. Authors: extract the full name of each author and their affiliation
+    2. Authors: extract the full name of each author and their affiliations
+    - DO NOT extract the email addresses
     3. Categories / Keywords:
      - Based on the content of the first page and the Abstract, provide exactly 6 cateogires or keywords that best represent the main topics, methods, or applications discussed in the paper.
      - If possible, extract relevant phrases direclty from the abstract ot use as categories / keywords.
