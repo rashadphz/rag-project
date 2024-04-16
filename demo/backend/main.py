@@ -1,13 +1,23 @@
 import asyncio
-from typing import Iterator, List
+from typing import Any, Iterator, List
 from fastapi import FastAPI, Response
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+from llama_index.core.instrumentation.events.base import BaseEvent
 from pydantic import BaseModel
 import json
 
 import requests
 from chat import stream_chat_message_objects
+from llama_index.core.instrumentation import get_dispatcher
+
+
+from llama_index.core.instrumentation.event_handlers import BaseEventHandler
+from dotenv import load_dotenv
+
+
+load_dotenv()
+
 
 app = FastAPI()
 app.add_middleware(
@@ -50,17 +60,21 @@ async def chat(request: SendMessageRequest) -> StreamingResponse:
 
 async def main():
     url = "http://127.0.0.1:8000/chat"
-    message = "How do local balanced samplers in generative models compare in terms of sample quality and diversity?"
+    message = "What is 5+5?"
 
     async def get_event():
         with requests.post(
-            url, data=SendMessageRequest(message=message).json(), stream=True
+            url,
+            data=SendMessageRequest(message=message, history=[]).json(),
+            stream=True,
         ) as stream:
             for chunk in stream.iter_lines():
                 yield chunk
 
     async for event in get_event():
-        print(event)
+        ...
+        # print(event)
+    #     print(event)
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from llama_index_client import ChatMessage
+from pydantic import BaseModel, Field
 from qdrant_client import QdrantClient
 from llama_index.core.vector_stores import VectorStoreQuery
 from llama_index.postprocessor.voyageai_rerank import VoyageAIRerank
@@ -15,6 +16,11 @@ from llama_index.core.schema import BaseNode
 import voyageai
 from schemas import RelatedSchema, Source, SourceResponse, TextChunk, FollowUpQuestions
 from llama_index.core.prompts import PromptTemplate
+from prompts import USE_CITATIONS, CHAT_PROMPT, HISTORY_QUERY_REPHRASE
+from llama_index.core.tools import FunctionTool, ToolMetadata
+from llama_index.core.selectors import LLMSingleSelector
+from sql import ask_sql_query
+from prompts import SQL_RESPONSE_SYNTHESIS_PROMPT
 
 import logging
 
@@ -30,38 +36,7 @@ GPT4_MODEL = "gpt-4-turbo"
 from dotenv import load_dotenv
 
 load_dotenv()
-
-USE_CITATIONS = """
-MAKE SURE to Cite relevant statements INLINE using the format [1], [2], [3], etc to reference the document number, \
-DO NOT provide any links following the citations. DO NOT add a reference section at the end.
-""".rstrip()
-
-CHAT_PROMPT = """\
-You are a professional research assistant. For each user question, use the context to their fullest potential to answer the question. Directly answer the question, and augment the response with insights from the context. If LaTeX is needed in the answer, make sure to render it correctly within a LaTeX block with either inline or block formatting ($content$ or $$content$$).
-
-{use_citations}
----------------------
-{my_context}
----------------------
-Query: {my_query}
-Answer: \
-"""
-
-HISTORY_QUERY_REPHRASE = f"""
-Given the following conversation and a follow up input, rephrase the follow up into a SHORT, \
-standalone query (which captures any relevant context from previous messages) for a vectorstore.
-IMPORTANT: EDIT THE QUERY TO BE AS CONCISE AS POSSIBLE. Respond with a short, compressed phrase \
-with mainly keywords instead of a complete sentence.
-If there is a clear change in topic, disregard the previous messages.
-Strip out any information that is not relevant for the retrieval task.
-If the follow up message is an error or code snippet, repeat the same input back EXACTLY.
-
-Chat History:
-{{chat_history}}
-
-Follow Up Input: {{question}}
-Standalone question (Respond with only the short combined query):
-""".strip()
+print(os.environ.get("DATABASE_URL"))
 
 
 client = QdrantClient(
@@ -96,15 +71,8 @@ def rephrase_query_with_history(
     return question
 
 
-async def stream_chat_message_objects(
-    question: str, history: List[ChatMessage]
-) -> AsyncIterator[SourceResponse | TextChunk | FollowUpQuestions]:
-    logging.info(f"Streaming chat message objects: {question}")
+async def stream_qa_objects(question: str) -> AsyncIterator[SourceResponse | TextChunk]:
     llm = OpenAI(model=GPT4_MODEL)
-
-    question = rephrase_query_with_history(question, history, llm)
-    related_queries_task = asyncio.create_task(generate_related_queries(question))
-
     embedding = embeddings.embed_query(question)
 
     query = VectorStoreQuery(
@@ -112,7 +80,6 @@ async def stream_chat_message_objects(
         similarity_top_k=30,
     )
 
-    # Sources
     top_nodes = vector_store.query(query).nodes or []
 
     node_texts = [node.get_content(metadata_mode="all") for node in top_nodes]
@@ -129,7 +96,7 @@ async def stream_chat_message_objects(
     # Chat
     context_str = "\n\n".join(
         [
-            f"{index + 1}. {node.get_content(metadata_mode='all')}"
+            f"Citation {index + 1}. {node.get_content(metadata_mode='all')}"
             for index, node in enumerate(reranked_nodes)
         ]
     )
@@ -137,8 +104,70 @@ async def stream_chat_message_objects(
         use_citations=USE_CITATIONS, my_context=context_str, my_query=question
     )
     logging.info(f"Beginning Text Stream: {fmt_qa_prompt}")
+    final_answer = ""
     for completion in llm.stream_complete(fmt_qa_prompt):
+        final_answer += completion.delta or ""
         yield TextChunk(text=completion.delta or "")
+
+    logging.info(f"Final Answer: {final_answer}")
+
+
+async def stream_sql_query(question: str) -> AsyncIterator[TextChunk]:
+    llm = OpenAI(model=GPT4_MODEL)
+    sql_result = ask_sql_query(question)
+    fmt_sql_response_prompt = SQL_RESPONSE_SYNTHESIS_PROMPT.format(
+        query_str=question,
+        sql_query=sql_result.sql_query,
+        context_str=sql_result.sql_response_str,
+    )
+    for completion in llm.stream_complete(fmt_sql_response_prompt):
+        yield TextChunk(text=completion.delta or "")
+
+
+sql_tool_metadata = ToolMetadata(
+    name="sql",
+    description="Useful for translating natural language into a SQL query over a table containing the following information about research papers: title, keywords / topics / categories, authors, author affiliations. These questions often involve known entities, direct database-related questions, or aggregation-related questions.",
+)
+
+retrieval_tool_metadata = ToolMetadata(
+    name="retrieval",
+    description="Useful for answering questions about research paper content that involves broader information gathering or when the question is more exploratory.",
+)
+
+
+def select_tool(question: str) -> ToolMetadata:
+    llm = OpenAI(model=GPT4_MODEL)
+    choices = [sql_tool_metadata, retrieval_tool_metadata]
+    selector = LLMSingleSelector.from_defaults(llm=llm)
+    selections = selector.select(
+        choices=choices,
+        query=question,
+    )
+
+    index = selections.ind
+    tool = choices[index]
+    return tool
+
+
+async def stream_chat_message_objects(
+    question: str, history: List[ChatMessage]
+) -> AsyncIterator[SourceResponse | TextChunk | FollowUpQuestions]:
+    logging.info(f"Original Question: {question}")
+    llm = OpenAI(model=GPT4_MODEL)
+    gpt3 = OpenAI(model=GPT3_MODEL)
+
+    question = rephrase_query_with_history(question, history, llm)
+    logging.info(f"Rephrase Question: {question}")
+    related_queries_task = asyncio.create_task(generate_related_queries(question))
+
+    tool = select_tool(question)
+    logging.info(f"Selected tool: {tool.name}")
+    if tool == sql_tool_metadata:
+        async for step in stream_sql_query(question):
+            yield step
+    elif tool == retrieval_tool_metadata:
+        async for step in stream_qa_objects(question):
+            yield step
 
     related_queries = await related_queries_task
     questions = [item.query for item in related_queries.queries]
@@ -146,7 +175,7 @@ async def stream_chat_message_objects(
 
 
 async def generate_related_queries(question: str) -> RelatedSchema:
-    llm = OpenAI(model=GPT3_MODEL)
+    llm = OpenAI(model=GPT4_MODEL)
     prompt = PromptTemplate(
         """
         You are a professional researcher. Your task is to generate three related queries that explore a subject matter more deeply, building on the original query and information discovered in its search results.
@@ -168,10 +197,21 @@ async def generate_related_queries(question: str) -> RelatedSchema:
 
 
 async def main():
-    res = await generate_related_queries(
-        "How does the performance of GSL algorithms change when random feature noise is injected into the graph structures of Cora and Citeseer?"
-    )
-    print(res)
+    q1 = "Which papers did dimakis write?"
+    tool = select_tool(q1)
+    assert tool.name == "sql"
+
+    q2 = "Conditional Generative Model in Total Variation Details"
+    tool = select_tool(q2)
+    assert tool.name == "retrieval"
+
+    q3 = "Dimakis publications"
+    tool = select_tool(q3)
+    assert tool.name == "sql"
+
+    q4 = "Dimakis oldest publication"
+    tool = select_tool(q4)
+    assert tool.name == "sql"
 
 
 if __name__ == "__main__":
