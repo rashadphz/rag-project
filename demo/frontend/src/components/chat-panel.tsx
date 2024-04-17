@@ -12,7 +12,7 @@ import { sendMessage } from "@/lib";
 import { SearchResults } from "./search-results";
 import { MessageComponent } from "./message";
 import { AskInput } from "./ask-input";
-import { Separator } from "@/components/ui/separator";
+import { Separator } from "./ui/separator";
 
 const HumanMessage = ({ message }: { message: string }) => {
   return <div className="text-2xl">{message}</div>;
