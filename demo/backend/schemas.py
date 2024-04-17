@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Literal
 
 
 class Source(BaseModel):
@@ -23,6 +23,10 @@ class FollowUpQuestions(BaseModel):
 
 class RelatedQueryItem(BaseModel):
     query: str
+
+
+class SQLEvent(BaseModel):
+    event_type: Literal["start", "end"]
 
 
 class RelatedSchema(BaseModel):

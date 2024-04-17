@@ -24,3 +24,7 @@ export interface TextChunk {
 export interface FollowUpQuestions {
   questions: string[];
 }
+export interface SQLEvent {
+  event_type: "start" | "end";
+}
+

@@ -5,6 +5,7 @@ import {
   SourceResponse,
   TextChunk,
   FollowUpQuestions,
+  SQLEvent,
 } from "@/interfaces";
 
 type NonEmptyObject = { [k: string]: any };
@@ -97,5 +98,7 @@ export async function* sendMessage({ message, history }: SendMessageRequest) {
     const errorMsg = errorJson.message || errorJson.detail || "";
     throw Error(`Failed to send message - ${errorMsg}`);
   }
-  yield* handleStream<SourceResponse | TextChunk | FollowUpQuestions>(response);
+  yield* handleStream<
+    SourceResponse | TextChunk | FollowUpQuestions | SQLEvent
+  >(response);
 }

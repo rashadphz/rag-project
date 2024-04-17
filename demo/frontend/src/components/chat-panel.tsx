@@ -1,4 +1,10 @@
-import { ArrowRight, PlusCircleIcon } from "lucide-react";
+import {
+  ArrowRight,
+  CheckIcon,
+  CircleCheckIcon,
+  LoaderCircleIcon,
+  PlusCircleIcon,
+} from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { useEffect, useRef, useState } from "react";
@@ -6,6 +12,7 @@ import {
   FollowUpQuestions,
   Source,
   SourceResponse,
+  SQLEvent,
   TextChunk,
 } from "@/interfaces";
 import { sendMessage } from "@/lib";
@@ -45,7 +52,9 @@ const AiMessage = ({
       )}
       {/* Answer */}
       <div>
-        <div className="text-lg font-medium ">Answer</div>
+        <div className="text-lg font-medium animate-in fade-in duration-1000 ease-out">
+          Answer
+        </div>
         <MessageComponent message={message} />
       </div>
       {/* Related */}
@@ -77,6 +86,7 @@ export interface Message {
   message: string;
   sources?: Source[];
   followUpQuestions?: string[];
+  sqlEvent?: "start" | "end";
 }
 
 export function ChatPanel() {
@@ -92,6 +102,7 @@ export function ChatPanel() {
     let answer = "";
     let sources: Source[] = [];
     let followUpQuestions: string[] = [];
+    let sqlEvent: "start" | "end" | undefined;
     const history = messages.map((message) => ({
       role: message.type,
       content: message.message,
@@ -106,6 +117,8 @@ export function ChatPanel() {
         answer += (packet as TextChunk).text;
       } else if (Object.hasOwn(packet, "questions")) {
         followUpQuestions = (packet as FollowUpQuestions).questions;
+      } else if (Object.hasOwn(packet, "event_type")) {
+        sqlEvent = (packet as SQLEvent).event_type;
       }
 
       // Update the AI message in real time
@@ -123,6 +136,7 @@ export function ChatPanel() {
             message: answer,
             sources: sources,
             followUpQuestions: followUpQuestions,
+            sqlEvent: sqlEvent,
           },
         ];
       });
@@ -148,14 +162,34 @@ export function ChatPanel() {
             {messages.map((message, index) => {
               if (message.type === "user") {
                 return (
-                  <HumanMessage
-                    key={`message-${index}`}
-                    message={message.message}
-                  />
+                  <>
+                    <HumanMessage
+                      key={`message-${index}`}
+                      message={message.message}
+                    />
+                  </>
                 );
               } else {
                 return (
                   <>
+                    {message.sqlEvent && (
+                      <div className="flex items-center gap-1.5 text-md animate-in fade-in duration-1000 ease-out">
+                        {message.sqlEvent === "start" ? (
+                          <LoaderCircleIcon
+                            size={18}
+                            className="animate-spin"
+                          />
+                        ) : (
+                          <CircleCheckIcon
+                            size={18}
+                            className="text-green-800"
+                          />
+                        )}
+                        <div>
+                          Using: <strong>SQL Tool</strong>
+                        </div>
+                      </div>
+                    )}
                     <AiMessage
                       key={`message-${index}`}
                       message={message.message}

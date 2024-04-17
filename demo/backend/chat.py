@@ -14,7 +14,14 @@ from llama_index.postprocessor.voyageai_rerank import VoyageAIRerank
 from llama_index.llms.openai import OpenAI
 from llama_index.core.schema import BaseNode
 import voyageai
-from schemas import RelatedSchema, Source, SourceResponse, TextChunk, FollowUpQuestions
+from schemas import (
+    RelatedSchema,
+    SQLEvent,
+    Source,
+    SourceResponse,
+    TextChunk,
+    FollowUpQuestions,
+)
 from llama_index.core.prompts import PromptTemplate
 from prompts import USE_CITATIONS, CHAT_PROMPT, HISTORY_QUERY_REPHRASE
 from llama_index.core.tools import FunctionTool, ToolMetadata
@@ -112,7 +119,9 @@ async def stream_qa_objects(question: str) -> AsyncIterator[SourceResponse | Tex
     logging.info(f"Final Answer: {final_answer}")
 
 
-async def stream_sql_query(question: str) -> AsyncIterator[TextChunk]:
+async def stream_sql_query(question: str) -> AsyncIterator[TextChunk | SQLEvent]:
+    yield SQLEvent(event_type="start")
+
     llm = OpenAI(model=GPT4_MODEL)
     sql_result = ask_sql_query(question)
     fmt_sql_response_prompt = SQL_RESPONSE_SYNTHESIS_PROMPT.format(
@@ -120,6 +129,7 @@ async def stream_sql_query(question: str) -> AsyncIterator[TextChunk]:
         sql_query=sql_result.sql_query,
         context_str=sql_result.sql_response_str,
     )
+    yield SQLEvent(event_type="end")
     for completion in llm.stream_complete(fmt_sql_response_prompt):
         yield TextChunk(text=completion.delta or "")
 
@@ -154,7 +164,6 @@ async def stream_chat_message_objects(
 ) -> AsyncIterator[SourceResponse | TextChunk | FollowUpQuestions]:
     logging.info(f"Original Question: {question}")
     llm = OpenAI(model=GPT4_MODEL)
-    gpt3 = OpenAI(model=GPT3_MODEL)
 
     question = rephrase_query_with_history(question, history, llm)
     logging.info(f"Rephrase Question: {question}")
