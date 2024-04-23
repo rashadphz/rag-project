@@ -1,7 +1,9 @@
 import asyncio
+import datetime
 import glob
 import os
 from typing import AsyncIterator, Iterator, List
+import wandb
 
 from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
@@ -28,12 +30,16 @@ from llama_index.core.tools import FunctionTool, ToolMetadata
 from llama_index.core.selectors import LLMSingleSelector
 from sql import ask_sql_query
 from prompts import SQL_RESPONSE_SYNTHESIS_PROMPT
+from wandb.sdk.data_types.trace_tree import Trace
+
 
 import logging
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
+
+wandb.init(project="ifml-rag")
 
 
 OPENAI_EMBEDDINGS_MODEL = "text-embedding-3-small"
@@ -78,7 +84,9 @@ def rephrase_query_with_history(
     return question
 
 
-async def stream_qa_objects(question: str) -> AsyncIterator[SourceResponse | TextChunk]:
+async def stream_qa_objects(
+    question: str, trace_parent: Trace = None
+) -> AsyncIterator[SourceResponse | TextChunk]:
     llm = OpenAI(model=GPT4_MODEL)
     embedding = embeddings.embed_query(question)
 
@@ -87,14 +95,40 @@ async def stream_qa_objects(question: str) -> AsyncIterator[SourceResponse | Tex
         similarity_top_k=30,
     )
 
+    retrieval_start_ms = now_ms()
     top_nodes = vector_store.query(query).nodes or []
+
+    retrieval_span = Trace(
+        name="retrieval",
+        start_time_ms=retrieval_start_ms,
+        end_time_ms=now_ms(),
+        inputs={"question": question},
+        outputs={
+            "nodes": [node.get_content(metadata_mode="all") for node in top_nodes]
+        },
+    )
+    trace_parent.add_child(retrieval_span)
 
     node_texts = [node.get_content(metadata_mode="all") for node in top_nodes]
 
     rerank_result = vo.rerank(question, node_texts, model="rerank-lite-1", top_k=8)
+
     reranked_nodes: List[BaseNode] = [
         top_nodes[item.index] for item in rerank_result.results
     ]
+
+    rerank_span = Trace(
+        name="rerank",
+        start_time_ms=retrieval_span.end_time_ms,
+        end_time_ms=now_ms(),
+        inputs={"nodes": node_texts},
+        outputs={
+            "reranked_nodes": [
+                node.get_content(metadata_mode="all") for node in reranked_nodes
+            ]
+        },
+    )
+    trace_parent.add_child(rerank_span)
 
     top_sources = [source_from_node(node) for node in reranked_nodes]
     yield SourceResponse(top_sources=top_sources)
@@ -116,22 +150,56 @@ async def stream_qa_objects(question: str) -> AsyncIterator[SourceResponse | Tex
         final_answer += completion.delta or ""
         yield TextChunk(text=completion.delta or "")
 
+    answer_span = Trace(
+        name="answer",
+        start_time_ms=rerank_span.end_time_ms,
+        end_time_ms=now_ms(),
+        outputs={"answer": final_answer},
+    )
+    trace_parent.add_child(answer_span)
+
     logging.info(f"Final Answer: {final_answer}")
 
 
-async def stream_sql_query(question: str) -> AsyncIterator[TextChunk | SQLEvent]:
+async def stream_sql_query(
+    question: str, trace_parent: Trace = None
+) -> AsyncIterator[TextChunk | SQLEvent]:
     yield SQLEvent(event_type="start")
 
     llm = OpenAI(model=GPT4_MODEL)
+
+    start_sql_ms = now_ms()
     sql_result = ask_sql_query(question)
+    sql_span = Trace(
+        name="sql",
+        start_time_ms=start_sql_ms,
+        end_time_ms=now_ms(),
+        inputs={"question": question},
+        outputs={
+            "sql_query": sql_result.sql_query,
+            "sql_response_str": sql_result.sql_response_str,
+        },
+    )
+    trace_parent.add_child(sql_span)
+
     fmt_sql_response_prompt = SQL_RESPONSE_SYNTHESIS_PROMPT.format(
         query_str=question,
         sql_query=sql_result.sql_query,
         context_str=sql_result.sql_response_str,
     )
     yield SQLEvent(event_type="end")
+    final_answer = ""
     for completion in llm.stream_complete(fmt_sql_response_prompt):
+        final_answer += completion.delta or ""
         yield TextChunk(text=completion.delta or "")
+
+    answer_span = Trace(
+        name="answer",
+        start_time_ms=sql_span.end_time_ms,
+        end_time_ms=now_ms(),
+        outputs={"answer": final_answer},
+    )
+    trace_parent.add_child(answer_span)
 
 
 sql_tool_metadata = ToolMetadata(
@@ -159,28 +227,75 @@ def select_tool(question: str) -> ToolMetadata:
     return tool
 
 
+def now_ms() -> int:
+    return round(datetime.datetime.now().timestamp() * 1000)
+
+
 async def stream_chat_message_objects(
-    question: str, history: List[ChatMessage]
+    orig_question: str, history: List[ChatMessage]
 ) -> AsyncIterator[SourceResponse | TextChunk | FollowUpQuestions]:
-    logging.info(f"Original Question: {question}")
+    root_span = Trace(
+        name="chat",
+        kind="agent",
+        start_time_ms=now_ms(),
+        inputs={
+            "original_question": orig_question,
+            "history": [msg.json() for msg in history],
+        },
+    )
+
+    logging.info(f"Original Question: {orig_question}")
     llm = OpenAI(model=GPT4_MODEL)
 
-    question = rephrase_query_with_history(question, history, llm)
+    question = rephrase_query_with_history(orig_question, history, llm)
+    rephrase_span = Trace(
+        name="rephrase",
+        start_time_ms=root_span.start_time_ms,
+        end_time_ms=now_ms(),
+        inputs={"original_question": orig_question},
+        outputs={"rephrased_question": question},
+    )
+    root_span.add_child(rephrase_span)
+
     logging.info(f"Rephrase Question: {question}")
     related_queries_task = asyncio.create_task(generate_related_queries(question))
 
     tool = select_tool(question)
+    tool_span = Trace(
+        name="select-tool",
+        start_time_ms=rephrase_span.end_time_ms,
+        end_time_ms=now_ms(),
+        inputs={"question": question},
+        outputs={"tool": tool.name},
+    )
+    root_span.add_child(tool_span)
+
     logging.info(f"Selected tool: {tool.name}")
+    final_answer = ""
     if tool == sql_tool_metadata:
-        async for step in stream_sql_query(question):
+        async for step in stream_sql_query(question, trace_parent=root_span):
+            final_answer += step.text if isinstance(step, TextChunk) else ""
             yield step
     elif tool == retrieval_tool_metadata:
-        async for step in stream_qa_objects(question):
+        async for step in stream_qa_objects(question, trace_parent=root_span):
+            final_answer += step.text if isinstance(step, TextChunk) else ""
             yield step
 
     related_queries = await related_queries_task
     questions = [item.query for item in related_queries.queries]
     yield FollowUpQuestions(questions=questions)
+
+    root_span.end_time_ms = now_ms()
+    root_span.add_inputs_and_outputs(
+        inputs={},
+        outputs={
+            "final_answer": final_answer,
+            "tool": tool.name,
+            "rephrased_question": question,
+            "related_queries": [item.query for item in related_queries.queries],
+        },
+    )
+    root_span.log(name="chat-trace")
 
 
 async def generate_related_queries(question: str) -> RelatedSchema:

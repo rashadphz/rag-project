@@ -1,0 +1,51 @@
+{
+    "os": "macOS-14.0-arm64-arm-64bit",
+    "python": "3.12.2",
+    "heartbeatAt": "2024-04-22T23:42:42.134717",
+    "startedAt": "2024-04-22T23:42:41.486148",
+    "docker": null,
+    "cuda": null,
+    "args": [
+        "main:app",
+        "--reload"
+    ],
+    "state": "running",
+    "program": "/Users/rashad/Library/Caches/pypoetry/virtualenvs/backend-TIcrPWPH-py3.12/bin/uvicorn",
+    "codePathLocal": null,
+    "git": {
+        "remote": "git@github.com:rashadphz/rag-project.git",
+        "commit": "8f855ba67d3806bf3a35eb64e0e33eaf59d68547"
+    },
+    "email": "rashadphilizaire@gmail.com",
+    "root": "/Users/rashad/Documents/texas/rag-project",
+    "host": "Rashads-MacBook-Pro.local",
+    "username": "rashad",
+    "executable": "/Users/rashad/Library/Caches/pypoetry/virtualenvs/backend-TIcrPWPH-py3.12/bin/python",
+    "cpu_count": 8,
+    "cpu_count_logical": 8,
+    "cpu_freq": {
+        "current": 3228,
+        "min": 600,
+        "max": 3228
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 3228,
+            "min": 600,
+            "max": 3228
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 460.4317207336426,
+            "used": 13.763378143310547
+        }
+    },
+    "gpuapple": {
+        "type": "arm",
+        "vendor": "Apple"
+    },
+    "memory": {
+        "total": 16.0
+    }
+}

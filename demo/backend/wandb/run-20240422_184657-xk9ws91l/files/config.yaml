@@ -1,0 +1,24 @@
+wandb_version: 1
+
+_wandb:
+  desc: null
+  value:
+    python_version: 3.12.2
+    cli_version: 0.16.6
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    start_time: 1713829617.0
+    t:
+      1:
+      - 55
+      - 87
+      - 95
+      - 105
+      3:
+      - 23
+      4: 3.12.2
+      5: 0.16.6
+      8:
+      - 5
+      - 9
+      13: darwin-arm64
